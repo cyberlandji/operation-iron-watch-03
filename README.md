@@ -58,3 +58,7 @@ Iron Watch 03 demonstrates real SOC capability:
 - Investigating attacker behavior
 - Improving detection maturity
 - Strengthening defensive posture
+
+
+> This repository documents IW03-A — a properly segmented DMZ architecture.
+> A follow-up experiment (IW03-B) explores dual-homed misconfiguration and segmentation bypass.
