@@ -1,42 +1,62 @@
 # Routing (IP Forwarding) — Philosophy & Controls
 
-## Why routing matters here
-`sentry-gate01` sits between DMZ and INTERNAL.
-Without routing, zones are isolated but cannot communicate even when needed.
-With routing, traffic can traverse zones — but must be controlled.
+This file documents the routing philosophy and IP forwarding decisions for `sentry-gate01` in Operation Iron Watch 03.
 
-## Explicit routing principle (LOCKED)
+---
+
+## Why Routing Matters Here
+
+Without routing, isolated zones cannot communicate even when needed. With routing, traffic can traverse zones — but must be controlled.
+
+---
+
+## Explicit Routing Principle (LOCKED)
+
 Routing is treated as a **capability**, not a default behavior:
 - We enable the kernel to forward packets **only when we intentionally decide**
 - We pair routing with firewall policy to ensure **least privilege**
 
-## Implementation decision
-- `net.ipv4.ip_forward` was enabled intentionally for IW03
-- Persisted in `/etc/sysctl.conf`
+---
 
-Example line (persisted):
-- `net.ipv4.ip_forward=1`
+## Implementation Decision
 
-## Security stance
+IP forwarding was enabled intentionally for IW03. Persisted in `/etc/sysctl.conf`:
+
+```bash
+net.ipv4.ip_forward = 1
+```
+
+This means `sentry-gate01` is not a transparent router — nothing crosses zones until allow rules exist.
+
+---
+
+## Security Stance
+
 Even with IP forwarding enabled:
-- default deny firewall posture remains the main enforcement layer
-- forwarding between DMZ and INTERNAL is **not permitted until explicit allow rules are added**
+- Default deny firewall posture remains the main enforcement layer
+- Forwarding between DMZ and LAN is **not permitted until explicit allow rules are added**
 
-## What comes next (IW03 steps)
-Routing alone is not enough.
-We will later implement controlled allow-lists such as:
-- DMZ -> INTERNAL: only required destination ports (e.g., telemetry/log shipping)
-- INTERNAL -> DMZ: only required management or monitoring flows (if needed)
-- Any internet egress: explicit, minimal, logged
+---
 
-## Why this supports IW04/IW05
-IW04 (attack validation) can show:
-- whether segmentation blocks unintended lateral movement
-- whether only the allowed paths exist
+## Permitted Flows (Current)
 
-IW05 (tuning/hardening) will refine:
-- deny rules
-- logging coverage
-- minimal egress strategy
+| Source | Destination | Port | Purpose |
+|--------|-------------|------|---------|
+| web-arm01 (10.10.10.10) | sentry-gate01 | 514/TCP | rsyslog log forwarding |
+| sentry-gate01 | soc-core04 (192.168.0.5) | 514/TCP or 12201/UDP | Graylog log ingestion |
+| Safeguard Host (192.168.0.7) | sentry-gate01 | 22/TCP | SSH management (LAN only) |
 
-EOF
+> All other cross-zone traffic is denied by default. DMZ → LAN free routing is not permitted.
+
+---
+
+## What Comes Next (IW04)
+
+Routing alone is not enough. IW04 (attack validation) can show:
+- Whether segmentation blocks unplanned lateral movement
+- Whether only the allowed paths exist
+
+IW04 (hardening/tuning) will refine:
+- Deny rules
+- Logging coverage
+- Minimal egress strategy
