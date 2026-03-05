@@ -1,45 +1,66 @@
 # Interfaces & IP Plan (sentry-gate01)
 
-This file documents the **NIC layout**, interface naming, and IP plan.
+This file documents the NIC layout, interface naming, and IP plan for `sentry-gate01` — the Firewall / Router VM in Operation Iron Watch 03.
 
-## NIC layout (LOCKED)
-`sentry-gate01` uses a multi-NIC design:
+---
 
-- **LAN (Management):** DHCP from home router (CGNAT)
-- **DMZ:** Static IP
-- **INTERNAL:** Static IP
+## NIC Layout (LOCKED)
 
-> Note: interface names are Linux/VirtualBox assigned (e.g., `enp0s8`, `enp0s9`, `enp0s10`).
+`sentry-gate01` uses a dual-NIC design:
 
-## Actual addressing (current)
-### LAN (Management)
-- DHCP: `192.168.0.0/24`
-- `sentry-gate01` LAN IP example: `192.168.0.84/24` (DHCP)
-- Safeguard Host example: `192.168.0.7` (allowed to SSH)
+| Interface | Zone | Type | Description |
+|-----------|------|------|-------------|
+| `wlo1` | LAN | DHCP (from home router) | Uplink to home router — internet access + LAN management |
+| `enp3s0` | DMZ | Static | Dedicated interface facing the DMZ subnet |
 
-### DMZ (Static)
-- Subnet: `10.10.10.0/24`
-- Gateway IP (on sentry-gate01): `10.10.10.1/24`
+> Note: Interface names are Linux/VirtualBox assigned (e.g., `enp3s0`, `wlo1`). These may vary depending on the host — always verify with `ip a` after deployment.
 
-### INTERNAL (Static)
-- Subnet: `10.20.20.0/24`
-- Gateway IP (on sentry-gate01): `10.20.20.1/24`
+---
 
-## Why DHCP only on LAN
-LAN is the upstream network (home router) and provides:
-- IP assignment
-- DNS
-- Optional internet egress (when allowed)
+## Addressing (Current)
 
-DMZ and INTERNAL are intentionally deterministic and isolated:
-- easier to reason about flows
-- easier to write firewall rules
-- prevents accidental exposure
+### LAN (wlo1)
+- Type: DHCP from home router (192.168.0.1)
+- Range: 192.168.0.0/24
+- Safeguard Host example: 192.168.0.7 (allowed to SSH)
+- soc-core04 (Graylog): 192.168.0.5
 
-## Netplan location
-Static IPs are declared via netplan, e.g.:
-- `/etc/netplan/00-installer-config.yaml`
+### DMZ (enp3s0)
+- Type: Static
+- Subnet: 10.10.10.0/24
+- sentry-gate01 DMZ gateway IP: 10.10.10.x (to be confirmed on deployment)
+- web-arm01 (Raspberry Pi): 10.10.10.10
 
-(Exact config is documented in build evidence / notes during IW03 steps.)
+---
 
-EOF
+## Why Dual-NIC Only
+
+The LAN is the upstream network (home router) and provides:
+- IP assignment (DHCP)
+- Internet access
+- Management plane access (SSH from Safeguard Host only)
+
+The DMZ is a dedicated isolated subnet for public-facing services (`web-arm01`). There is no third zone — soc-core04 lives in the LAN and receives logs via the LAN interface of `sentry-gate01`.
+
+---
+
+## Netplan Location
+
+Static IPs are declared via Netplan, e.g.:
+
+```
+/etc/netplan/01-sentry-gate01.yaml
+```
+
+Netplan configuration files will be documented in `03-hardening/` once deployment is complete.
+
+---
+
+## Trust Model Summary
+
+| Zone | Trust Level | SSH Access |
+|------|------------|------------|
+| LAN (wlo1) | Trusted | From Safeguard Host only |
+| DMZ (enp3s0) | Untrusted | Not permitted inbound |
+
+> Management of `sentry-gate01` is only permitted from the LAN side, restricted to Safeguard Host (192.168.0.7).
