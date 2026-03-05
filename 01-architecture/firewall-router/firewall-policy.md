@@ -1,45 +1,63 @@
-# Firewall Policy Baseline (UFW) — Default Deny
+# Firewall Policy Baseline (FPB) — Default Deny
+
+---
 
 ## Purpose
-Establish a **default deny** baseline on `sentry-gate01` so that:
-- only explicitly allowed traffic is possible
-- management access is tightly controlled
-- future detection/monitoring operates on clear, intentional flows
 
-## Baseline posture (LOCKED)
+Establish a **"default deny"** baseline on `sentry-gate01` so that:
+- Only explicitly allowed traffic is possible
+- Management access is tightly controlled
+- Future detection/monitoring operates on clear, intentional flows
+
+---
+
+## Baseline Posture (LOCKED)
+
 UFW is enabled with:
-- **Default deny incoming**
-- **Default deny outgoing**
-- **Default deny routed (forwarded)**
+- `"Default deny incoming"`
+- `"Default deny outgoing"`
+- `"Default deny routed (forwarded)"`
 
 This means:
 - `sentry-gate01` is not a transparent router
-- nothing crosses zones until allow rules exist
+- Nothing crosses zones until allow rules exist
 
-## Management plane rule (LOCKED)
+---
+
+## Management Plane Rule (LOCKED)
+
 SSH to `sentry-gate01` is restricted to Safeguard Host only.
 
-Example intent:
-- Allow TCP/22 from Safeguard Host IP (e.g., `192.168.0.7`)
-- Deny SSH from all other sources (including DMZ and INTERNAL)
+**Example intent:**
+- Allow TCP/22 from Safeguard Host IP (192.168.0.7)
+- Deny SSH from all other sources (including DMZ)
 
-Rationale:
+**Rationale:**
 - Safeguard Host is the bastion / admin entrypoint
-- reduces attack surface on management plane
-- prevents opportunistic admin access from other LAN devices
+- Reduces attack surface on management plane
+- Prevents opportunistic admin access from other LAN devices
 
-## Forwarding rules (not yet added)
+---
+
+## Forwarding Rules (Not Yet Added)
+
 At this stage:
-- routed traffic is denied by default
-- DMZ <-> INTERNAL forwarding is not allowed
+- Routed traffic is denied by default
+- DMZ → LAN forwarding is not allowed
 
-Planned next step:
-- introduce minimal allow-lists for specific service needs
-- log/monitor allowed and denied flows
+**Planned allow-lists (next IW03 steps):**
 
-## Logging intent (future enhancement)
+| Source | Destination | Port | Purpose |
+|--------|-------------|------|---------|
+| web-arm01 (10.10.10.10) | sentry-gate01 | 514/TCP | rsyslog log forwarding |
+| sentry-gate01 | soc-core04 (192.168.0.5) | 514/TCP or 12201/UDP | Graylog log ingestion |
+
+> No other cross-zone forwarding will be permitted.
+
+---
+
+## Logging Intent (Future Enhancement)
+
 To support detection engineering later in IW03:
-- enable visibility into allowed/denied connections (UFW logs and/or packet inspection)
-- correlate firewall decisions with SIEM telemetry
-
-EOF
+- Enable visibility into all permitted connections (EVE logs and/or packet inspection)
+- Correlate firewall decisions with SIEM telemetry in Graylog
