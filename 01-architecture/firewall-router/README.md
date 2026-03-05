@@ -24,7 +24,7 @@ This firewall/router VM introduces:
 - **Zones:** LAN (management), DMZ (public-facing service zone), INTERNAL (SIEM & core services zone)
 
 ## Implementation status (LOCKED MILESTONE)
-✅ Multi-NIC design + static addressing for DMZ/INTERNAL  
+✅ Multi-NIC design + static addressing for DMZ 
 ✅ IP forwarding enabled (explicit routing capability)  
 ✅ UFW enabled with **default deny** (incoming / outgoing / routed)  
 ✅ SSH management restricted to **Safeguard Host only**  
