@@ -100,8 +100,9 @@ Only **Safeguard Host (192.168.0.7)** is permitted to SSH into any other host in
 | SSH restricted to Safeguard Host only | ✅ Done | sentry-gate01 |
 | rsyslog installed on web-arm01 | ✅ Done | web-arm01 |
 | Suricata installed on web-arm01 | ✅ Done | web-arm01 |
-| SSH key-only auth | 🔜 Planned | All hosts |
-| PermitRootLogin disabled | 🔜 Planned | All hosts |
+| SSH key-only auth | ✅ Done | All hosts |
+| PermitRootLogin disabled | ✅ Done| All hosts |
+| UsePAM no | ✅ Done | All hosts |
 | UFW allow-list for log forwarding | 🔜 Planned | sentry-gate01 |
 | rsyslog relay configured (web-arm01 → sentry-gate01 → soc-core04) | 🔜 Planned | web-arm01 / sentry-gate01 |
 | Suricata EVE JSON output verified | 🔜 Planned | web-arm01 |
