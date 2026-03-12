@@ -83,7 +83,7 @@ All three rules confirmed against live traffic from Safeguard Host (10.10.10.1) 
 | ICMP Flood Detected | 10.10.10.1 | 28 | 2026-03-12 05:23:41 |
 | SYN Flood Detected | 10.10.10.1 | 139 | 2026-03-12 05:29:07 |
 
-![All Three Detections Confirmed](../evidences/ddos-detection-suite-validation/HTTP_ICMP_SYN_Flood_Event_Detection.png)
+![All Three Detections Confirmed](../evidences/ddos-detections-suite-validation/HTTP_ICMP_SYN_Flood_Event_Detection.png)
 
 ---
 
