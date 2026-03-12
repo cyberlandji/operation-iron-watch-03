@@ -1,3 +1,4 @@
+
 # ICMP Flood Detection — L3 Network Layer
 
 **Rule ID:** IW03-DETECT-003  
@@ -70,7 +71,7 @@ event_type:alert AND alert_signature:"IW03 - ICMP Flood Detected"
 
 ## Threshold Rationale
 
-50 ICMP echo requests per 60 seconds was chosen as the flood threshold. A normal ping (`ping -c 4`) sends 4 packets — well below the threshold. A flood ping (`ping -f`) or hping3 ICMP burst sends hundreds per second — well above it. This threshold cleanly separates diagnostic ping traffic from flood behavior in a home lab environment.
+50 ICMP echo requests per 60 seconds cleanly separates diagnostic ping traffic (`ping -c 4` = 4 packets) from flood behavior (`ping -f` = hundreds per second). Calibrated for home lab environment.
 
 **Known gap:** ICMP floods from multiple distributed sources (each below 50 packets/60s) will evade per-source tracking. Also, if ICMP is blocked at the network layer entirely, there is no traffic for Suricata to see — no traffic means no alert, but also no flood reaching the target.
 
@@ -82,7 +83,7 @@ event_type:alert AND alert_signature:"IW03 - ICMP Flood Detected"
 # Flood ping from Safeguard Host
 sudo ping -f -c 200 10.10.10.10
 
-# Or with hping3 for more control
+# Or with hping3
 sudo hping3 --icmp -c 200 --fast 10.10.10.10
 ```
 
@@ -91,8 +92,6 @@ Watch eve.json on web-arm01 during the test:
 ```bash
 sudo tail -f /var/log/suricata/eve.json | grep '"event_type":"alert"'
 ```
-
-You should see `alert_signature: IW03 - ICMP Flood Detected` records appear within seconds.
 
 ---
 
@@ -116,7 +115,21 @@ Rules placed in `/etc/suricata/rules/suricata.rules` were not loading because Su
 | Timestamp | 2026-03-12 05:23:41 |
 | Graylog Event | IW03 - ICMP Flood Detected |
 | Priority | High |
-| Screenshots | `evidences/ICMP_Flood_Event_Detection.png`, `evidences/ICMP_Alert_signature.png`, `evidences/SURICATA_Alert.png`, `evidences/Suricata_alert_log.png` |
+
+![Suricata Alert Log](../evidences/ddos-detections-suite-validation/Suricata_alert_log.png)
+*eve.json tail — alert records firing during ICMP flood test*
+
+![Suricata Alert in Graylog](../evidences/ddos-detections-suite-validation/SURICATA_Alert.png)
+*Graylog stream — event_type:alert ICMP events from 10.10.10.1*
+
+![ICMP Alert Signature](../evidences/ddos-detections-suite-validation/ICMP_Alert_signature.png)
+*Graylog message detail — alert_signature, sid 9000001, structured fields*
+
+![ICMP Flood Event Detection](../evidences/ddos-detections-suite-validation/ICMP_Flood_Event_Detection.png)
+*Graylog Events — IW03 - ICMP Flood Detected, count()=28, 2026-03-12 05:23*
+
+![Detection Rule Troubleshooting — Single ICMP Flow](../evidences/ddos-detections-suite-validation/One_ICMP_captured.png)
+*Single ICMP flow record — demonstrates why flow counting fails for ICMP flood detection*
 
 ---
 
