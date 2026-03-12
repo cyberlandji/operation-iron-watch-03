@@ -2,7 +2,7 @@
 
 **Host:** `web-arm01` (10.10.10.10)  
 **Date:** 2026-03-06  
-**Performed from:** Safeguard Host (192.168.0.7)
+**Performed from:** Safeguard Host
 
 ---
 
