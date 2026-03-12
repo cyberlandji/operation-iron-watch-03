@@ -1,7 +1,7 @@
 # 🔐 Operation Iron Watch 03
 ## DMZ Hardening, Log Pipeline & Detection Engineering
 
-[![Status](https://img.shields.io/badge/status-completed-green)](https://github.com/cyberlandji/operation-iron-watch-03)
+[![Status](https://img.shields.io/badge/status-complete-green)](https://github.com/cyberlandji/operation-iron-watch-03)
 [![Lab Series](https://img.shields.io/badge/series-Operation%20Iron%20Watch-blue)](https://github.com/cyberlandji)
 [![Focus](https://img.shields.io/badge/focus-Hardening%20%26%20Detection-teal)](https://github.com/cyberlandji/operation-iron-watch-03)
 
