@@ -6,8 +6,6 @@ This directory documents all hardening measures applied in Operation Iron Watch 
 
 ## Scope
 
-Hardening in IW03 covers three layers:
-
 | Layer | Scope |
 |-------|-------|
 | **Network** | DMZ segmentation, firewall rules on `sentry-gate01` |
@@ -23,21 +21,19 @@ Hardening in IW03 covers three layers:
 
 ### Enforcement Point
 `sentry-gate01` sits between both zones and enforces a default-deny posture via UFW:
-
 ```bash
-# Applied on sentry-gate01
 ufw default deny incoming
 ufw default deny outgoing
 ufw default deny routed
 ```
 
-### Permitted Flows (Explicit Allow-List)
+### Permitted Flows
 
 | Source | Destination | Port | Purpose |
 |--------|-------------|------|---------|
-| Safeguard Host (192.168.0.7) | sentry-gate01 | 22/TCP | SSH management |
-| web-arm01 (10.10.10.10) | sentry-gate01 | 514/TCP | rsyslog log forwarding |
-| sentry-gate01 | soc-core04 (192.168.0.5) | 514/TCP or 12201/UDP | Graylog log ingestion |
+| Safeguard Host (LAN) | sentry-gate01 | 22/TCP | SSH management |
+| web-arm01 (10.10.10.10) | sentry-gate01 (10.10.10.2) | 514/TCP | rsyslog log forwarding |
+| sentry-gate01 (192.168.0.4) | soc-core03 (192.168.0.6) | 514/TCP | Graylog log ingestion |
 
 > All other traffic between zones is denied. DMZ cannot initiate connections into the LAN beyond the log forwarding path.
 
@@ -46,45 +42,41 @@ ufw default deny routed
 ## 2. Host Hardening — SSH Key-Only Authentication
 
 ### Applied To
-All hosts in the lab:
 
 | Host | IP |
 |------|----|
-| Safeguard Host | 192.168.0.7 |
-| soc-core04 | 192.168.0.5 |
-| sentry-gate01 | 192.168.0.x (LAN) |
+| soc-core03 | 192.168.0.6 |
+| sentry-gate01 | 192.168.0.4 (LAN) |
 | web-arm01 | 10.10.10.10 |
 
 ### Configuration Applied
-
-SSH password authentication disabled on all hosts via `/etc/ssh/sshd_config`:
-
 ```bash
 PasswordAuthentication no
 PubkeyAuthentication yes
 PermitRootLogin no
+UsePAM no
 ```
 
-Reloaded with:
+### Critical Finding — Cloud-Init Override
 
-```bash
-sudo systemctl reload sshd
-```
+On `web-arm01`, the file `/etc/ssh/sshd_config.d/50-cloud-init.conf` was **silently overriding all hardening applied to `/etc/ssh/sshd_config`**. SSH drop-in files in `/etc/ssh/sshd_config.d/` take precedence over the main config. The file was re-enabling password authentication despite the main config disabling it.
+
+**Resolution:** File removed. Hardening confirmed effective after restart.
+
+> This is a non-obvious bypass vector. Any SSH hardening effort must audit `/etc/ssh/sshd_config.d/` for drop-in overrides.
 
 ### Why This Matters
-
-The IW02 SSH compromise succeeded because `web-arm01` accepted password-based authentication with weak credentials. SSH key-only auth makes brute-force attacks ineffective — no valid key means no access, regardless of how many password attempts are made.
+The IW02 SSH compromise succeeded because `web-arm01` accepted password-based authentication with weak credentials. SSH key-only auth makes brute-force attacks ineffective — no valid key means no access regardless of password attempts.
 
 ---
 
 ## 3. Access Control — Bastion Model
 
-### Principle
-Only **Safeguard Host (192.168.0.7)** is permitted to SSH into any other host in the lab. No other machine — including those in the DMZ — can initiate SSH sessions toward LAN hosts.
+Only **Safeguard Host** (LAN) is permitted to SSH into any other host in the lab. No other machine — including those in the DMZ — can initiate SSH sessions toward LAN hosts.
 
 ### Enforcement
-- UFW rule on `sentry-gate01` allows TCP/22 only from 192.168.0.7
-- SSH keys are only deployed from Safeguard Host
+- UFW rule on `sentry-gate01` allows TCP/22 only from Safeguard Host
+- SSH keys deployed from Safeguard Host only
 - `web-arm01` in the DMZ has no SSH access path into the LAN
 
 ---
@@ -94,24 +86,27 @@ Only **Safeguard Host (192.168.0.7)** is permitted to SSH into any other host in
 | Item | Status | Host |
 |------|--------|------|
 | DMZ subnet created (10.10.10.0/24) | ✅ Done | sentry-gate01 / web-arm01 |
+| TP-Link TL-SF1005D switch installed for DMZ isolation | ✅ Done | Physical |
 | sentry-gate01 deployed with dual-NIC | ✅ Done | sentry-gate01 |
 | UFW default deny (incoming/outgoing/routed) | ✅ Done | sentry-gate01 |
 | IP forwarding enabled | ✅ Done | sentry-gate01 |
+| Netplan static IP — persistent across reboots | ✅ Done | sentry-gate01 |
 | SSH restricted to Safeguard Host only | ✅ Done | sentry-gate01 |
-| rsyslog installed on web-arm01 | ✅ Done | web-arm01 |
-| Suricata installed on web-arm01 | ✅ Done | web-arm01 |
 | SSH key-only auth | ✅ Done | All hosts |
-| PermitRootLogin disabled | ✅ Done| All hosts |
+| PermitRootLogin disabled | ✅ Done | All hosts |
 | UsePAM no | ✅ Done | All hosts |
+| 50-cloud-init.conf override removed | ✅ Done | web-arm01 |
 | UFW allow-list for log forwarding | ✅ Done | sentry-gate01 |
-| rsyslog relay configured (web-arm01 → sentry-gate01 → soc-core04) | 🔜 Planned | web-arm01 / sentry-gate01 |
-| Suricata EVE JSON output verified | 🔜 Planned | web-arm01 |
-| Graylog inputs configured (auth.log, access.log, EVE JSON) | 🔜 Planned | soc-core04 |
+| rsyslog installed on web-arm01 | ✅ Done | web-arm01 |
+| rsyslog relay configured (web-arm01 → sentry-gate01 → soc-core03) | ✅ Done | web-arm01 / sentry-gate01 |
+| Suricata installed on web-arm01 | ✅ Done | web-arm01 |
+| Suricata EVE JSON output verified | ✅ Done | web-arm01 |
+| Graylog inputs configured (auth.log, access.log, EVE JSON) | ✅ Done | soc-core03 |
 
 ---
 
 ## What Comes Next
 
-Once the firewall allow-list for log forwarding is confirmed and tested, hardening is complete. The log pipeline configuration is documented in `04-log-pipeline/`.
+Hardening is complete and validated. The log pipeline configuration is documented in `04-log-pipeline/`.
 
-IW04 will then validate this hardened baseline by running controlled reconnaissance and initial access attempts against the IW03 architecture.
+IW04 will validate this hardened baseline by running controlled reconnaissance and initial access attempts against the IW03 architecture — testing whether segmentation holds and whether Graylog surfaces the activity.
