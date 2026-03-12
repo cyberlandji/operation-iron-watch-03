@@ -73,9 +73,8 @@ IW03 is a **hardening and detection engineering** operation. No active attacker 
 
 ### Decision 2 — sentry-gate01 as Firewall + Log Relay
 Rather than having Graylog pull logs directly from `web-arm01` (which would require opening a port from DMZ into LAN), `sentry-gate01` acts as both the network enforcement point and the rsyslog relay. Logs flow:
-
 ```
-web-arm01 → sentry-gate01 → soc-core04 (Graylog)
+web-arm01 → sentry-gate01 → soc-core03 (Graylog)
 ```
 
 This keeps the DMZ→LAN boundary intact and gives `sentry-gate01` a dual role that is well-documented and auditable.
