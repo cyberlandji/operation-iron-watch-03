@@ -47,8 +47,8 @@ This operation introduces a proper **DMZ architecture**, a **firewall relay laye
 |------|----|------|
 | Router | 192.168.0.1 | Home router (CGNAT) |
 | Safeguard Host | 192.168.0.7 | Physical host running VMs |
-| soc-core04 (VM) | 192.168.0.5 | SIEM — Graylog |
-| sentry-gate01 (VM) | wlo1: 192.168.0.x / enp3s0: 10.10.10.x | Firewall VM + rsyslog relay |
+| soc-core03 (VM) | 192.168.0.5 | SIEM — Graylog |
+| sentry-gate01 (VM) | wlo1: 192.168.0.4 / enp3s0: 10.10.10.2 | Firewall VM + rsyslog relay |
 | web-arm01 (Pi) | 10.10.10.10 | Web server + Suricata IDS — in DMZ |
 
 ### Log Flow
@@ -73,7 +73,7 @@ soc-core04 (Graylog)
 
 | Tool | Host | Role |
 |------|------|------|
-| Graylog | soc-core04 | SIEM — log ingestion, alerting, pipeline enrichment |
+| Graylog | soc-core03 | SIEM — log ingestion, alerting, pipeline enrichment |
 | Suricata | web-arm01 | Network IDS — EVE JSON output |
 | rsyslog | web-arm01 + sentry-gate01 | Log forwarding and relay |
 | Apache2 | web-arm01 | Web server — access.log source |
@@ -122,7 +122,7 @@ All alerts are enriched with severity levels (`LOW / MEDIUM / HIGH / CRITICAL`) 
 |---------|-------|--------|
 | [Iron Watch 01](https://github.com/cyberlandji/operation-iron-watch-01) | Foundational SOC — Snort IDS, network visibility | ✅ Complete |
 | [Iron Watch 02](https://github.com/cyberlandji/operation-iron-watch-02) | Graylog SIEM — web enumeration detection | ✅ Complete |
-| **Iron Watch 03** | **DMZ hardening, log pipeline, detection engineering** | 🔄 In Progress |
+| **Iron Watch 03** | **DMZ hardening, log pipeline, detection engineering** | ✅ Complete |
 | Iron Watch 04 | Attack validation — Kali recon & initial access against IW03 | 🔜 Planned |
 
 ---
