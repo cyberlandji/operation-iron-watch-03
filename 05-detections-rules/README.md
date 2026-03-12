@@ -39,9 +39,9 @@ During implementation, a critical design lesson emerged that reshaped the detect
 
 | Rule | Layer | Detection Model | Threshold | Status |
 |------|-------|----------------|-----------|--------|
-| HTTP Flood | L7 Application | Graylog event definition — `event_type:http` count per src_ip | > 50 req / 1 min | ✅ Validated |
-| SYN Flood | L4 Transport | Graylog flow counting + Suricata rule (sid:9000002) | > 100 flows / 1 min | ✅ Validated |
-| ICMP Flood | L3 Network | Suricata threshold rule (sid:9000001) → Graylog alert event | > 50 packets / 60s | ✅ Validated |
+| [HTTP Flood](http-flood.md) | L7 Application | Graylog event definition — `event_type:http` count per src_ip | > 50 req / 1 min | ✅ Validated |
+| [SYN Flood](syn-flood.md) | L4 Transport | Graylog flow counting + Suricata rule (sid:9000002) | > 100 flows / 1 min | ✅ Validated |
+| [ICMP Flood](icmp-flood.md) | L3 Network | Suricata threshold rule (sid:9000001) → Graylog alert event | > 50 packets / 60s | ✅ Validated |
 
 ---
 
@@ -77,11 +77,14 @@ alert tcp any any -> $HOME_NET 80 (msg:"IW03 - SYN Flood Detected"; flags:S; thr
 
 All three rules confirmed against live traffic from Safeguard Host (10.10.10.1) → web-arm01 (10.10.10.10):
 
-| Rule | src_ip | count() | Timestamp | Evidence |
-|------|--------|---------|-----------|---------|
-| HTTP Flood Detected | 10.10.10.1 | 60 | 2026-03-12 03:52:46 | `evidences/HTTP_Flood_Event_Detection.png` |
-| ICMP Flood Detected | 10.10.10.1 | 28 | 2026-03-12 05:23:41 | `evidences/ICMP_Flood_Event_Detection.png` |
-| SYN Flood Detected | 10.10.10.1 | 139 | 2026-03-12 05:29:07 | `evidences/SYN_and_ICMP_Flood_Event_Detection.png` |
+| Rule | src_ip | count() | Timestamp |
+|------|--------|---------|-----------|
+| HTTP Flood Detected | 10.10.10.1 | 60 | 2026-03-12 03:52:46 |
+| ICMP Flood Detected | 10.10.10.1 | 28 | 2026-03-12 05:23:41 |
+| SYN Flood Detected | 10.10.10.1 | 139 | 2026-03-12 05:29:07 |
+
+![All Three Detections Confirmed](../evidences/ddos-detection-suite-validation/HTTP_ICMP_SYN_Flood_Event_Detection.png)
+*Graylog Events — all three detections confirmed in single view*
 
 ---
 
