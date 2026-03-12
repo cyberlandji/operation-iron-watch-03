@@ -53,7 +53,7 @@ Located in `ssh-hardening/` — see `ssh-hardening/README.md` for full context a
 
 ---
 
-## Architecture & Troubleshooting
+## Detection Rule Troubleshooting
 
 | File | Description |
 |------|-------------|
