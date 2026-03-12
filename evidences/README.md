@@ -21,6 +21,8 @@ Located in `ssh-hardening/` — see `ssh-hardening/README.md` for full context a
 
 ## Log Pipeline & Graylog
 
+Located in `log-pipeline/`.
+
 | File | Description |
 |------|-------------|
 | `BASELOG_VIEWS.png` | Graylog saved searches — BASELOG VIEW and BASELOG_FILTERED VIEW |
@@ -31,6 +33,8 @@ Located in `ssh-hardening/` — see `ssh-hardening/README.md` for full context a
 ---
 
 ## DDoS Detection Suite — Validation
+
+Located in `ddos-detection-suite-validation/`.
 
 ### HTTP Flood (L7)
 | File | Description |
@@ -46,20 +50,17 @@ Located in `ssh-hardening/` — see `ssh-hardening/README.md` for full context a
 | `ICMP_Alert_signature.png` | Graylog message detail — alert_signature, sid 9000001, structured fields |
 | `ICMP_Flood_Event_Detection.png` | Graylog Events — IW03 - ICMP Flood Detected, count()=28, 2026-03-12 05:23 |
 
-### SYN Flood (L4) + Full Suite Confirmation
-| File | Description |
-|------|-------------|
-| `SYN_and_ICMP_Flood_Event_Detection.png` | Graylog Events — all three detections confirmed in single view |
-
----
-
-## Detection Rule Troubleshooting
-
+### Detection Rule Troubleshooting
 | File | Description |
 |------|-------------|
 | `adding_fields_alert.png` | Graylog — alert fields configuration during Suricata EVE JSON extractor setup |
 | `One_ICMP_captured.png` | Single ICMP flow record — demonstrates why flow counting fails for ICMP flood detection |
 | `ICMP.png` | ICMP traffic visible in Graylog stream — initial test before Suricata rule redesign |
+
+### SYN Flood (L4) + Full Suite Confirmation
+| File | Description |
+|------|-------------|
+| `SYN_and_ICMP_Flood_Event_Detection.png` | Graylog Events — all three detections confirmed in single view |
 
 ---
 
