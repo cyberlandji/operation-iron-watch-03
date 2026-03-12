@@ -1,70 +1,111 @@
 # Detection Rules — DDoS Detection Suite
 
-This directory contains the detection rules built and validated during Operation Iron Watch 03. Rules are developed live against real log data flowing through the IW03 log pipeline — not written in advance.
-
-> ⚠️ This document reflects the **planned detection scope**. Individual rule files will be added as each rule is implemented, tested, and validated in Graylog.
+This directory documents the detection rules built and validated during Operation Iron Watch 03. All rules were developed live against real log data flowing through the IW03 pipeline.
 
 ---
 
 ## Detection Philosophy
 
-Rules in IW03 are built following this cycle:
+Rules in IW03 follow this cycle:
 
 1. **Understand the log source** — know exactly what fields Graylog produces for each input
 2. **Write a candidate rule** — based on real observed traffic patterns
-3. **Test against live data** — confirm the rule fires correctly and does not generate excessive false positives
-4. **Document the rule** — logic, threshold rationale, severity level, and evidence
-5. **Refine if needed** — adjust thresholds based on real environment noise
+3. **Test against live data** — confirm the rule fires correctly
+4. **Document the rule** — logic, threshold rationale, severity, evidence
+5. **Refine if needed** — adjust based on real environment behavior
 
 > A rule that is not tested is not a detection. It is a guess.
 
 ---
 
-## Detection Suite Scope — DDoS Detection (Three Layers)
+## Key Architectural Finding — Flow vs Packet Detection
 
-IW03 implements a structured DDoS Detection Suite covering three distinct network layers. Each layer targets a different attack vector and uses a different log source.
+During implementation, a critical design lesson emerged that reshaped the detection approach for ICMP and SYN flood rules.
 
-| Rule | Layer | Log Source | Detection Target | Status |
-|------|-------|------------|-----------------|--------|
-| HTTP Flood | L7 — Application | Apache `access.log` | Abnormal HTTP request spike per source IP per time window | 🔜 Planned |
-| SYN Flood | L4 — Transport | Suricata EVE JSON | High rate of SYN packets without ACK completion | 🔜 Planned |
-| ICMP Flood | L3 — Network | Suricata EVE JSON / firewall | Abnormal volume of ICMP echo requests | 🔜 Planned |
+**Suricata tracks flows (sessions), not individual packets.** A continuous ICMP flood of 1,000 packets generates **one flow record** — making Graylog flow-count thresholds useless for volumetric ICMP detection. Detection logic for packet-rate attacks must live in the **IDS layer (Suricata rules)**, not the SIEM layer.
+
+| Attack Type | Flow Records Generated | Flow Counting Valid? |
+|-------------|----------------------|---------------------|
+| HTTP Flood (1,000 requests) | ~1,000 — each request = separate connection | ✅ Yes |
+| SYN Flood (closed port) | ~1 per packet — RST closes each flow immediately | ✅ Yes |
+| SYN Flood (open port) | Few — half-open flows time out slowly | ⚠️ Unreliable |
+| ICMP Flood (1,000 packets) | 1 — continuous session = one flow | ❌ No |
+
+**Conclusion:** HTTP and SYN (closed port) work with Graylog flow counting. ICMP requires a Suricata threshold rule. SYN gets both — flow counting as primary, Suricata rule as reliable fallback.
+
+---
+
+## Detection Suite — Three Layers
+
+| Rule | Layer | Detection Model | Threshold | Status |
+|------|-------|----------------|-----------|--------|
+| HTTP Flood | L7 Application | Graylog event definition — `event_type:http` count per src_ip | > 50 req / 1 min | ✅ Validated |
+| SYN Flood | L4 Transport | Graylog flow counting + Suricata rule (sid:9000002) | > 100 flows / 1 min | ✅ Validated |
+| ICMP Flood | L3 Network | Suricata threshold rule (sid:9000001) → Graylog alert event | > 50 packets / 60s | ✅ Validated |
+
+---
+
+## Suricata Custom Rules
+
+File location: `/var/lib/suricata/rules/suricata.rules`
+```suricata
+# IW03 DDoS Detection Suite
+alert icmp any any -> $HOME_NET any (msg:"IW03 - ICMP Flood Detected"; itype:8; threshold:type threshold, track by_src, count 50, seconds 60; sid:9000001; rev:1;)
+alert tcp any any -> $HOME_NET 80 (msg:"IW03 - SYN Flood Detected"; flags:S; threshold:type threshold, track by_src, count 100, seconds 60; sid:9000002; rev:1;)
+```
+
+**Rule keyword notes:**
+- `itype:8` — ICMP echo request only (not replies or unreachable)
+- `flags:S` — TCP SYN flag set, the flood signature
+- `threshold:type threshold` — fires once per N packets per time window per source
+- `track by_src` — each source IP evaluated independently
+- `sid:9000001/9000002` — custom/local rule ID range
+
+---
+
+## Graylog Event Definitions
+
+| Event Definition | Filter | Threshold | Group-by |
+|-----------------|--------|-----------|---------|
+| IW03 - HTTP Flood Detected | `event_type:http` | count > 50 / 1 min | src_ip |
+| IW03 - SYN Flood Detected | `event_type:flow AND proto:TCP` | count > 100 / 1 min | src_ip |
+| IW03 - ICMP Flood Detected | `event_type:alert AND alert_signature:"IW03 - ICMP Flood Detected"` | count ≥ 1 / 1 min | src_ip |
+
+---
+
+## Validation Results
+
+All three rules confirmed against live traffic from Safeguard Host (10.10.10.1) → web-arm01 (10.10.10.10):
+
+| Rule | src_ip | count() | Timestamp | Evidence |
+|------|--------|---------|-----------|---------|
+| HTTP Flood Detected | 10.10.10.1 | 60 | 2026-03-12 03:52:46 | `evidences/HTTP_Flood_Event_Detection.png` |
+| ICMP Flood Detected | 10.10.10.1 | 28 | 2026-03-12 05:23:41 | `evidences/ICMP_Flood_Event_Detection.png` |
+| SYN Flood Detected | 10.10.10.1 | 139 | 2026-03-12 05:29:07 | `evidences/SYN_and_ICMP_Flood_Event_Detection.png` |
 
 ---
 
 ## Severity Enrichment
 
-All alerts will be enriched with severity levels via **Graylog pipeline rules**:
+All alerts enriched with severity via Graylog pipeline rules:
 
 | Severity | Meaning |
 |----------|---------|
-| `LOW` | Anomaly detected — below threshold, informational |
+| `LOW` | Anomaly detected — informational |
 | `MEDIUM` | Threshold crossed — warrants attention |
 | `HIGH` | Sustained or escalating pattern — likely attack |
 | `CRITICAL` | Confirmed attack pattern — immediate action required |
 
-> Severity thresholds will be calibrated against real traffic observed in the lab environment during implementation.
-
 ---
 
-## Rule Files (Added During Implementation)
-
-Rule documentation files will be added here as each rule is built and validated:
-
+## Rule Files
 ```
 05-detection-rules/
-├── README.md               ← this file
-├── http-flood.md           ← L7 rule (added during implementation)
-├── syn-flood.md            ← L4 rule (added during implementation)
-└── icmp-flood.md           ← L3 rule (added during implementation)
+├── README.md       ← this file
+├── http-flood.md   ← L7 rule
+├── syn-flood.md    ← L4 rule
+└── icmp-flood.md   ← L3 rule
 ```
-
-Each rule file will document:
-- Rule logic and Graylog query
-- Log source and relevant fields
-- Threshold rationale
-- Severity mapping
-- Test evidence (screenshots / log samples in `evidences/`)
 
 ---
 
@@ -72,12 +113,11 @@ Each rule file will document:
 
 | Item | Status |
 |------|--------|
-| Log pipeline delivering data to Graylog | 🔜 Planned |
-| Graylog field mapping verified per log source | 🔜 Planned |
-| HTTP Flood rule written and tested | 🔜 Planned |
-| SYN Flood rule written and tested | 🔜 Planned |
-| ICMP Flood rule written and tested | 🔜 Planned |
-| Severity enrichment pipeline configured | 🔜 Planned |
-| All rules validated with evidence | 🔜 Planned |
-
-> Rules will be developed live during implementation. Each rule goes through the full write → test → validate → document cycle before being marked ✅ Done.
+| Log pipeline delivering data to Graylog | ✅ Done |
+| Graylog field mapping verified per log source | ✅ Done |
+| HTTP Flood rule written and validated | ✅ Done |
+| SYN Flood rule written and validated | ✅ Done |
+| ICMP Flood rule written and validated | ✅ Done |
+| Suricata custom rules deployed (sid:9000001, 9000002) | ✅ Done |
+| Severity enrichment pipeline configured | ✅ Done |
+| All rules validated with evidence screenshots | ✅ Done |
