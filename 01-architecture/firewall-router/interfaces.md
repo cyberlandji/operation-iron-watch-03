@@ -1,66 +1,71 @@
 # Interfaces & IP Plan (sentry-gate01)
 
-This file documents the NIC layout, interface naming, and IP plan for `sentry-gate01` — the Firewall / Router VM in Operation Iron Watch 03.
+This file documents the NIC layout, interface naming, and IP plan for `sentry-gate01` — the firewall and rsyslog relay VM in Operation Iron Watch 03.
 
 ---
 
-## NIC Layout (LOCKED)
+## NIC Layout
 
 `sentry-gate01` uses a dual-NIC design:
 
-| Interface | Zone | Type | Description |
-|-----------|------|------|-------------|
-| `wlo1` | LAN | DHCP (from home router) | Uplink to home router — internet access + LAN management |
-| `enp3s0` | DMZ | Static | Dedicated interface facing the DMZ subnet |
+| Interface | Zone | Type | IP Address | Description |
+|-----------|------|------|-----------|-------------|
+| `enp0s8` | LAN | DHCP | 192.168.0.4 | Uplink to LAN — management + Graylog relay destination |
+| `enp0s9` | DMZ | Static | 10.10.10.2/24 | DMZ-facing interface — rsyslog relay ingestion point |
 
-> Note: Interface names are Linux/VirtualBox assigned (e.g., `enp3s0`, `wlo1`). These may vary depending on the host — always verify with `ip a` after deployment.
+> Note: Interface names are VirtualBox-assigned. Always verify with `ip a` after deployment. Do not confuse with Safeguard Host interface names (`enp3s0`, `wlo1`) — those are the physical host's interfaces.
 
 ---
 
-## Addressing (Current)
+## Addressing
 
-### LAN (wlo1)
+### LAN (enp0s8)
 - Type: DHCP from home router (192.168.0.1)
-- Range: 192.168.0.0/24
-- Safeguard Host example: 192.168.0.7 (allowed to SSH)
-- soc-core04 (Graylog): 192.168.0.5
+- Assigned: 192.168.0.4
+- Safeguard Host (LAN): management/bastion — SSH allowed from here only
+- soc-core03 (Graylog): 192.168.0.6 — rsyslog relay destination
 
-### DMZ (enp3s0)
+### DMZ (enp0s9)
 - Type: Static
 - Subnet: 10.10.10.0/24
-- sentry-gate01 DMZ gateway IP: 10.10.10.x (to be confirmed on deployment)
+- sentry-gate01 DMZ IP: **10.10.10.2**
 - web-arm01 (Raspberry Pi): 10.10.10.10
+- Safeguard Host DMZ gateway: 10.10.10.1 (enp3s0)
 
 ---
 
 ## Why Dual-NIC Only
 
-The LAN is the upstream network (home router) and provides:
-- IP assignment (DHCP)
-- Internet access
+The LAN provides:
 - Management plane access (SSH from Safeguard Host only)
+- Graylog relay destination — soc-core03 lives on LAN and receives logs via enp0s8
 
-The DMZ is a dedicated isolated subnet for public-facing services (`web-arm01`). There is no third zone — soc-core04 lives in the LAN and receives logs via the LAN interface of `sentry-gate01`.
+The DMZ is an isolated subnet for `web-arm01`. There is no third zone required — the relay model handles cross-zone log flow without opening additional routes.
 
 ---
 
-## Netplan Location
+## Netplan Configuration
 
-Static IPs are declared via Netplan, e.g.:
-
+Static IP for the DMZ interface is declared via Netplan:
 ```
 /etc/netplan/01-sentry-gate01.yaml
 ```
 
-Netplan configuration files will be documented in `03-hardening/` once deployment is complete.
+Configuration is persistent across reboots. Full Netplan config documented in `03-hardening/`.
 
 ---
 
-## Trust Model Summary
+## Trust Model
 
-| Zone | Trust Level | SSH Access |
-|------|------------|------------|
-| LAN (wlo1) | Trusted | From Safeguard Host only |
-| DMZ (enp3s0) | Untrusted | Not permitted inbound |
+| Zone | Interface | Trust Level | SSH Inbound |
+|------|-----------|------------|-------------|
+| LAN | enp0s8 | Trusted | From Safeguard Host only |
+| DMZ | enp0s9 | Untrusted | Not permitted |
 
-> Management of `sentry-gate01` is only permitted from the LAN side, restricted to Safeguard Host (192.168.0.7).
+---
+
+## Status
+
+- ✅ Dual-NIC confirmed — enp0s8 (LAN 192.168.0.4) + enp0s9 (DMZ 10.10.10.2)
+- ✅ Static IP on enp0s9 via Netplan — persistent across reboots
+- ✅ Trust model enforced via UFW (see `firewall-policy.md`)
