@@ -7,11 +7,11 @@
 Establish a **"default deny"** baseline on `sentry-gate01` so that:
 - Only explicitly allowed traffic is possible
 - Management access is tightly controlled
-- Future detection/monitoring operates on clear, intentional flows
+- Log relay chain operates on clear, intentional flows
 
 ---
 
-## Baseline Posture (LOCKED)
+## Baseline Posture
 
 UFW is enabled with:
 - `"Default deny incoming"`
@@ -20,44 +20,39 @@ UFW is enabled with:
 
 This means:
 - `sentry-gate01` is not a transparent router
-- Nothing crosses zones until allow rules exist
+- Nothing crosses zones without an explicit allow rule
 
 ---
 
-## Management Plane Rule (LOCKED)
+## Management Plane Rules
 
 SSH to `sentry-gate01` is restricted to Safeguard Host only.
 
-**Example intent:**
-- Allow TCP/22 from Safeguard Host IP (192.168.0.7)
-- Deny SSH from all other sources (including DMZ)
+| Rule | Protocol | Source | Port | Action |
+|------|----------|--------|------|--------|
+| SSH management | TCP | Safeguard Host (LAN) | 22 | ALLOW |
+| SSH (all others) | TCP | Any | 22 | DENY |
 
 **Rationale:**
-- Safeguard Host is the bastion / admin entrypoint
-- Reduces attack surface on management plane
-- Prevents opportunistic admin access from other LAN devices
+- Safeguard Host is the sole admin entrypoint (bastion model)
+- Prevents opportunistic management access from LAN or DMZ devices
+- Reduces attack surface on the management plane
 
 ---
 
-## Forwarding Rules (Not Yet Added)
+## Forwarding / Relay Rules
 
-At this stage:
-- Routed traffic is denied by default
-- DMZ → LAN forwarding is not allowed
+The log relay chain is active. The following flows are explicitly permitted:
 
-**Planned allow-lists (next IW03 steps):**
+| Source | Destination | Port | Protocol | Purpose |
+|--------|-------------|------|----------|---------|
+| web-arm01 (10.10.10.10) | sentry-gate01 (10.10.10.2) | 514 | TCP | rsyslog — DMZ log ingestion |
+| sentry-gate01 (192.168.0.4) | soc-core03 (192.168.0.6) | 514 | TCP | rsyslog — relay to Graylog |
 
-| Source | Destination | Port | Purpose |
-|--------|-------------|------|---------|
-| web-arm01 (10.10.10.10) | sentry-gate01 | 514/TCP | rsyslog log forwarding |
-| sentry-gate01 | soc-core04 (192.168.0.5) | 514/TCP or 12201/UDP | Graylog log ingestion |
-
-> No other cross-zone forwarding will be permitted.
+> No other cross-zone forwarding is permitted. DMZ → LAN lateral movement is blocked by default-deny posture.
 
 ---
 
-## Logging Intent (Future Enhancement)
+## Logging
 
-To support detection engineering later in IW03:
-- Enable visibility into all permitted connections (EVE logs and/or packet inspection)
-- Correlate firewall decisions with SIEM telemetry in Graylog
+rsyslog relay is operational — all log sources from `web-arm01` (auth.log, access.log, eve.json) transit through `sentry-gate01` to Graylog on `soc-core03`. Firewall decisions ar
