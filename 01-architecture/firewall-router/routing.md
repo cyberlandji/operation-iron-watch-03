@@ -10,53 +10,56 @@ Without routing, isolated zones cannot communicate even when needed. With routin
 
 ---
 
-## Explicit Routing Principle (LOCKED)
+## Explicit Routing Principle
 
 Routing is treated as a **capability**, not a default behavior:
-- We enable the kernel to forward packets **only when we intentionally decide**
-- We pair routing with firewall policy to ensure **least privilege**
+- The kernel forwards packets **only when intentionally enabled**
+- Routing is paired with firewall policy to enforce **least privilege**
 
 ---
 
-## Implementation Decision
+## Implementation
 
-IP forwarding was enabled intentionally for IW03. Persisted in `/etc/sysctl.conf`:
-
+IP forwarding enabled and persisted in `/etc/sysctl.conf`:
 ```bash
 net.ipv4.ip_forward = 1
 ```
 
-This means `sentry-gate01` is not a transparent router — nothing crosses zones until allow rules exist.
+`sentry-gate01` is not a transparent router — nothing crosses zones without an explicit UFW allow rule.
 
 ---
 
 ## Security Stance
 
 Even with IP forwarding enabled:
-- Default deny firewall posture remains the main enforcement layer
-- Forwarding between DMZ and LAN is **not permitted until explicit allow rules are added**
+- Default-deny UFW posture remains the primary enforcement layer
+- No DMZ → LAN forwarding is permitted outside the defined allow-list below
 
 ---
 
-## Permitted Flows (Current)
+## Permitted Flows
 
-| Source | Destination | Port | Purpose |
-|--------|-------------|------|---------|
-| web-arm01 (10.10.10.10) | sentry-gate01 | 514/TCP | rsyslog log forwarding |
-| sentry-gate01 | soc-core04 (192.168.0.5) | 514/TCP or 12201/UDP | Graylog log ingestion |
-| Safeguard Host (192.168.0.7) | sentry-gate01 | 22/TCP | SSH management (LAN only) |
+| Source | Destination | Port | Protocol | Purpose |
+|--------|-------------|------|----------|---------|
+| web-arm01 (10.10.10.10) | sentry-gate01 (10.10.10.2) | 514 | TCP | rsyslog — DMZ log ingestion |
+| sentry-gate01 (192.168.0.4) | soc-core03 (192.168.0.6) | 514 | TCP | rsyslog — relay to Graylog |
+| Safeguard Host (LAN) | sentry-gate01 | 22 | TCP | SSH management (LAN only) |
 
-> All other cross-zone traffic is denied by default. DMZ → LAN free routing is not permitted.
+> All other cross-zone traffic is denied by default.
 
 ---
 
 ## What Comes Next (IW04)
 
-Routing alone is not enough. IW04 (attack validation) can show:
+Routing alone is not enough. IW04 (attack validation) will test:
 - Whether segmentation blocks unplanned lateral movement
-- Whether only the allowed paths exist
+- Whether only the defined allowed paths exist in practice
+- Whether Suricata and Graylog surface the attempts in real time
 
-IW04 (hardening/tuning) will refine:
-- Deny rules
-- Logging coverage
-- Minimal egress strategy
+---
+
+## Status
+
+- ✅ IP forwarding enabled and persisted via sysctl.conf
+- ✅ UFW default-deny posture enforced
+- ✅ Permitted flows implemented and validated end-to-end
