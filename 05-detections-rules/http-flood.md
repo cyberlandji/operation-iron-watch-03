@@ -89,10 +89,10 @@ for i in $(seq 1 200); do curl -s http://10.10.10.10/ > /dev/null & done
 | Graylog Event | IW03 - HTTP Flood Detected |
 | Priority | High |
 
-![HTTP Flood Event Detection](../evidences/ddos-detection-suite-validation/HTTP_Flood_Event_Detection_proof.png)
+![HTTP Flood Event Detection](../evidences/ddos-detections-suite-validation/HTTP_Flood_Event_Detection_proof.png)
 *Graylog Events tab — two HTTP Flood events fired*
 
-![HTTP Flood Event Details](../evidences/ddos-detection-suite-validation/HTTP_Flood_Event_Details.png)
+![HTTP Flood Event Details](../evidences/ddos-detections-suite-validation/HTTP_Flood_Event_Details.png)
 *Event detail — src_ip 10.10.10.1, count()=60, priority High*
 
 Two events fired in the same 1-hour window confirming consistent detection across multiple test runs.
