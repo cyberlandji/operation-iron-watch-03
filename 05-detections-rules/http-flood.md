@@ -1,77 +1,106 @@
 # HTTP Flood Detection — L7 Application Layer
 
-**Rule ID:** IW03-DDos-L7  
-**Layer:** Application (L7)  
+**Rule ID:** IW03-DETECT-001  
+**Layer:** L7 — Application  
 **Log Source:** Apache `access.log` → rsyslog → sentry-gate01 → Graylog  
 **Status:** ✅ Validated — 2026-03-12
 
 ---
 
-## Attack Description
+## What It Detects
 
-An HTTP flood is a Layer 7 volumetric attack where an attacker sends a high volume of HTTP requests to exhaust web server resources. Unlike SYN or ICMP floods, HTTP floods complete the full TCP handshake and send legitimate-looking requests — making them invisible to network-layer detection.
+A volumetric HTTP flood — an abnormal spike in HTTP requests from a single source IP within a short time window. The attacker completes the full TCP handshake and sends legitimate-looking HTTP requests at machine-gun rate, exhausting web server resources.
 
-This is the one DDoS vector where Apache `access.log` is the correct detection source: every HTTP request generates a log entry regardless of server response.
-
----
-
-## Detection Logic
-
-### Why Flow Counting Works Here
-
-Each HTTP request opens a separate TCP connection to the web server, generates an `access.log` entry, and closes. This means 1,000 HTTP requests → ~1,000 separate log entries in Graylog. Flow-count thresholds are valid and effective at L7.
-
-### Graylog Event Definition
-
-| Parameter | Value |
-|-----------|-------|
-| **Filter** | `event_type:http` |
-| **Aggregation** | `count()` |
-| **Threshold** | `> 50` |
-| **Time window** | 1 minute |
-| **Group-by** | `src_ip` |
-| **Priority** | High |
-
-**Filter & Aggregation** type event definition — Graylog counts matching messages per source IP within the rolling time window and fires when the threshold is crossed.
+**Why it is detectable at L7:**  
+Each HTTP request generates a separate Apache access.log entry. A flood of 1,000 requests produces 1,000 log entries — making count-based thresholds in Graylog effective.
 
 ---
 
-## Relevant Graylog Fields
+## Detection Model
 
-| Field | Example Value | Source |
-|-------|--------------|--------|
-| `event_type` | `http` | Grok extractor on access.log |
-| `src_ip` | `10.10.10.1` | Grok extractor |
-| `dest_ip` | `10.10.10.10` | Grok extractor |
-| `http_status` | `200`, `404` | Grok extractor |
-| `request` | `GET / HTTP/1.1` | Grok extractor |
-| `source` | `web-arm01` | rsyslog tag |
+**Type:** Graylog Event Definition (Filter & Aggregation)  
+**No Suricata rule required** — HTTP requests are fully visible in access.log.
+
+### Graylog Query
+```
+event_type:http
+```
+
+### Aggregation
+- **Function:** count()
+- **Threshold:** > 50
+- **Time window:** 1 minute
+- **Group-by:** src_ip
+
+### Event Definition Settings
+| Field | Value |
+|-------|-------|
+| Name | IW03 - HTTP Flood Detected |
+| Priority | High |
+| Type | Filter & Aggregation |
+| Filter | `event_type:http` |
+| Grouping | src_ip |
+| Threshold | count() > 50 / 1 min |
+
+---
+
+## Log Source — Fields Used
+
+Graylog extracts the following fields from Apache access.log via Grok extractor:
+
+| Field | Example | Description |
+|-------|---------|-------------|
+| `event_type` | `http` | Set by Graylog pipeline rule |
+| `src_ip` | `10.10.10.1` | Client IP from access.log |
+| `http_status` | `200` | HTTP response code |
+| `request` | `GET / HTTP/1.1` | Request line |
+| `dest_ip` | `10.10.10.10` | Web server IP |
 
 ---
 
 ## Threshold Rationale
 
-50 requests per minute from a single source IP is well above normal browsing behavior in a home lab environment. In production this threshold would be significantly higher — but for IW03 it provides a reliable detection signal without false positives against legitimate traffic.
+50 requests per minute was chosen for the home lab environment. In production this would be calibrated against a baseline of normal traffic. At 50 req/min, legitimate human browsing does not trigger the rule — only scripted or automated request patterns do.
+
+**Known gap:** Slow-and-low HTTP attacks (e.g. Slowloris) operate below volume thresholds and will not be detected by this rule. Slowloris detection requires connection timeout monitoring, not request counting.
 
 ---
 
-## Known Gaps
+## Test Method
 
-- **Slow-and-low attacks (Slowloris):** Sends very few, very slow HTTP requests to hold connections open. Falls below the volume threshold entirely. Not detected by this rule.
-- **Distributed HTTP flood:** Multiple source IPs each sending below threshold. Group-by src_ip means distributed floods are harder to detect without correlation across IPs.
+```bash
+# Apache Bench from Safeguard Host
+ab -n 200 -c 10 http://10.10.10.10/
+
+# Or curl loop
+for i in $(seq 1 200); do curl -s http://10.10.10.10/ > /dev/null & done
+```
 
 ---
 
-## Validation
+## Validation Evidence
 
-**Test method:** Apache benchmark / curl loop from Safeguard Host (10.10.10.1) targeting web-arm01 (10.10.10.10)
-
-| Field | Value |
-|-------|-------|
+| Item | Value |
+|------|-------|
 | src_ip | 10.10.10.1 |
 | dest_ip | 10.10.10.10 |
 | count() | 60 |
 | Timestamp | 2026-03-12 03:52:46 |
-| Events fired | 2 (within 1-hour window) |
+| Graylog Event | IW03 - HTTP Flood Detected |
+| Priority | High |
 
-**Evidence:** `evidences/HTTP_Flood_Event_Detection.png`, `evidences/HTTP_Flood_Event_Details.png`
+![HTTP Flood Event Detection](../evidences/ddos-detection-suite-validation/HTTP_Flood_Event_Detection_proof.png)
+*Graylog Events tab — two HTTP Flood events fired*
+
+![HTTP Flood Event Details](../evidences/ddos-detection-suite-validation/HTTP_Flood_Event_Details.png)
+*Event detail — src_ip 10.10.10.1, count()=60, priority High*
+
+Two events fired in the same 1-hour window confirming consistent detection across multiple test runs.
+
+---
+
+## MITRE ATT&CK
+
+| Technique | Name | Tactic |
+|-----------|------|--------|
+| T1499.002 | Endpoint DoS: Service Exhaustion Flood | Impact |
