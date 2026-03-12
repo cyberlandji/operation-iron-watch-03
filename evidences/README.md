@@ -57,9 +57,9 @@ Located in `ssh-hardening/` — see `ssh-hardening/README.md` for full context a
 
 | File | Description |
 |------|-------------|
-| `adding_fields_alert.png` | Graylog — alert fields configuration |
-| `One_ICMP_captured.png` | Single ICMP flow record — demonstrates flow counting limitation |
-| `ICMP.png` | ICMP traffic visible in Graylog stream |
+| `adding_fields_alert.png` | Graylog — alert fields configuration during Suricata EVE JSON extractor setup |
+| `One_ICMP_captured.png` | Single ICMP flow record — demonstrates why flow counting fails for ICMP flood detection |
+| `ICMP.png` | ICMP traffic visible in Graylog stream — initial test before Suricata rule redesign |
 
 ---
 
