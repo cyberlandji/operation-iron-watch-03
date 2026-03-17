@@ -18,7 +18,7 @@ Operation Iron Watch 03 is the hardening and detection engineering phase of the 
 
 Iron Watch 02 exposed a critical gap: the SSH compromise of `web-arm01` was **completely invisible** on the SIEM because `auth.log` was never ingested. The attacker moved freely while Graylog only watched HTTP 404 spikes. IW03 is the direct response to that failure.
 
-This operation introduces a proper **DMZ architecture** with physical network isolation, a **firewall/relay layer** (sentry-gate01), an **expanded multi-source log pipeline**, and a validated **three-layer DDoS Detection Suite**. No attacker is simulated — this is pure hardening and proactive detection engineering. Attack validation is scoped to Iron Watch 04.
+This operation introduces a proper **DMZ architecture** with physical network isolation, a **firewall/relay layer** (sentry-gate01), an **expanded multi-source log pipeline**, and a validated **three-layer DDoS Detection Suite**. No attacker is simulated — this is pure hardening and proactive detection engineering.
 
 ---
 
