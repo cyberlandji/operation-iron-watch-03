@@ -202,7 +202,7 @@ operation-iron-watch-03/
 
 **cyberlandji** — Blue Team Practitioner | ISC2 CC | CompTIA Security+ (in progress)
 
-Portfolio: [cyberlandji.com](https://cyberlandji.com) · GitHub: [github.com/cyberlandji](https://github.com/cyberlandji)
+GitHub: [github.com/cyberlandji](https://github.com/cyberlandji)
 
 ---
 
